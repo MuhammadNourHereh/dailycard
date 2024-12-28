@@ -5,39 +5,63 @@ use Illuminate\Routing\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 
-/**
- * @OA\Info(
- *     title="E-shop API",
- *     version="1.0.0",
- *     description="This is the API for the E-shop application."
- * )
- */
 class UserController extends Controller
 {
-    /**
-     * @OA\Get(
-     *     path="/api/users",
-     *     summary="Get all users",
-     *     @OA\Response(
-     *         response=200,
-     *         description="List of users"
-     *     )
-     * )
-     */
     public function index()
     {
-        return User::all(); // Fetch all users (for admin purposes)
+        return response()->json(User::all(), 200);
     }
 
     public function show($id)
     {
-        return User::findOrFail($id); // Fetch a specific user
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        return response()->json($user, 200);
+    }
+
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'username' => 'required|string|max:255',
+            'password_hash' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'phone' => 'required|string|max:20',
+            'balance' => 'required|numeric|min:0'
+        ]);
+
+        $user = User::create($validatedData);
+        return response()->json($user, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
-        $user->update($request->only(['username', 'email', 'phone', 'balance']));
-        return response()->json(['message' => 'User updated successfully', 'user' => $user]);
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        $validatedData = $request->validate([
+            'username' => 'sometimes|required|string|max:255',
+            'password_hash' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
+            'phone' => 'sometimes|required|string|max:20',
+            'balance' => 'sometimes|required|numeric|min:0'
+        ]);
+
+        $user->update($validatedData);
+        return response()->json($user, 200);
+    }
+
+    public function destroy($id)
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        $user->delete();
+        return response()->json(null, 204);
     }
 }
